@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1746082253368,
+    "title": "Summarize Article",
+    "description": "Summarizes a given article with key points.",
+    "tags": [
+      "summary",
+      "NLP"
+    ],
+    "fullPrompt": "Summarize the following article into bullet points...",
+    "dateCreated": "2025-05-01T06:50:53.368Z",
+    "dateModified": "2025-05-01T06:50:53.369Z"
+  }
+]
