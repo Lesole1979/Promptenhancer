@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prompt Organizer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f9f9fb;
+      color: #333;
+      padding: 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      color: #2c3e50;
+    }
+
+    #controls, #filter-sort {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    input, textarea, select, button {
+      padding: 0.5rem;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      max-width: 300px;
+    }
+
+    button {
+      background-color: #2c3e50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #34495e;
+    }
+
+    .prompt-card {
+      background: white;
+      border: 1px solid #ddd;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .prompt-card h3 {
+      margin: 0 0 0.5rem;
+    }
+
+    .tags {
+      color: #888;
+      font-size: 0.9rem;
+      margin-top: 0.3rem;
+    }
+
+    .prompt-actions {
+      margin-top: 0.5rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    @media (max-width: 600px) {
+      #controls, #filter-sort {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Prompt Organizer</h1>
+    <p>Save, manage, and search your favorite AI prompts.</p>
+  </header>
+
+  <section id="controls">
+    <input type="text" id="title" placeholder="Prompt Title" />
+    <input type="text" id="tags" placeholder="Tags (comma separated)" />
+    <textarea id="description" placeholder="Short Description"></textarea>
+    <textarea id="fullPrompt" placeholder="Full Prompt Text"></textarea>
+    <button onclick="addPrompt()">Add Prompt</button>
+  </section>
+
+  <section id="filter-sort">
+    <input type="text" id="search" placeholder="Search prompts..." oninput="renderPrompts()" />
+    <select id="tagFilter" onchange="renderPrompts()">
+      <option value="">All Tags</option>
+    </select>
+    <select id="sortBy" onchange="renderPrompts()">
+      <option value="dateCreated">Sort by Date Created</option>
+      <option value="dateModified">Sort by Last Modified</option>
+    </select>
+  </section>
+
+  <main id="promptList"></main>
+
+  <script>
+    const storageKey = 'promptOrganizer.prompts';
+
+    let prompts = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+    if (prompts.length === 0) {
+      prompts = [{
+        id: Date.now(),
+        title: "Summarize Article",
+        description: "Summarizes a given article with key points.",
+        tags: ["summary", "NLP"],
+        fullPrompt: "Summarize the following article into bullet points...",
+        dateCreated: new Date().toISOString(),
+        dateModified: new Date().toISOString()
+      }];
+      savePrompts();
+    }
+
+    function savePrompts() {
+      localStorage.setItem(storageKey, JSON.stringify(prompts));
+    }
+
+    function addPrompt() {
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const tags = document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(Boolean);
+      const fullPrompt = document.getElementById('fullPrompt').value.trim();
+
+      if (!title || !fullPrompt) {
+        alert("Title and Full Prompt are required.");
+        return;
+      }
+
+      const now = new Date().toISOString();
+
+      prompts.push({ id: Date.now(), title, description, tags, fullPrompt, dateCreated: now, dateModified: now });
+      savePrompts();
+      clearInputs();
+      renderPrompts();
+    }
+
+    function clearInputs() {
+      ['title', 'description', 'tags', 'fullPrompt'].forEach(id => document.getElementById(id).value = '');
+    }
+
+    function deletePrompt(id) {
+      if (confirm("Delete this prompt?")) {
+        prompts = prompts.filter(p => p.id !== id);
+        savePrompts();
+        renderPrompts();
+      }
+    }
+
+    function editPrompt(id) {
+      const prompt = prompts.find(p => p.id === id);
+      document.getElementById('title').value = prompt.title;
+      document.getElementById('description').value = prompt.description;
+      document.getElementById('tags').value = prompt.tags.join(', ');
+      document.getElementById('fullPrompt').value = prompt.fullPrompt;
+
+      deletePrompt(id);
+    }
+
+    function renderPrompts() {
+      const search = document.getElementById('search').value.toLowerCase();
+      const tagFilter = document.getElementById('tagFilter').value;
+      const sortBy = document.getElementById('sortBy').value;
+
+      let filtered = prompts.filter(p =>
+        (!tagFilter || p.tags.includes(tagFilter)) &&
+        (p.title.toLowerCase().includes(search) ||
+         p.description.toLowerCase().includes(search) ||
+         p.fullPrompt.toLowerCase().includes(search))
+      );
+
+      filtered.sort((a, b) => new Date(b[sortBy]) - new Date(a[sortBy]));
+
+      const container = document.getElementById('promptList');
+      container.innerHTML = '';
+
+      filtered.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'prompt-card';
+        div.innerHTML = `
+          <h3>${p.title}</h3>
+          <p>${p.description}</p>
+          <div class="tags">Tags: ${p.tags.join(', ')}</div>
+          <pre>${p.fullPrompt}</pre>
+          <div class="prompt-actions">
+            <button onclick="editPrompt(${p.id})" title="Edit this prompt">Edit</button>
+            <button onclick="deletePrompt(${p.id})" title="Delete this prompt">Delete</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      updateTagFilter();
+    }
+
+    function updateTagFilter() {
+      const tagSelect = document.getElementById('tagFilter');
+      const allTags = new Set(prompts.flatMap(p => p.tags));
+      const selected = tagSelect.value;
+
+      tagSelect.innerHTML = `<option value="">All Tags</option>`;
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        if (tag === selected) option.selected = true;
+        tagSelect.appendChild(option);
+      });
+    }
+
+    // Initial render
+    renderPrompts();
+  </script>
+
+  <script>
+    function exportPrompts() {
+      const dataStr = JSON.stringify(prompts, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "prompts_export.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function importPrompts(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported)) {
+            prompts = [...prompts, ...imported.map(p => ({ ...p, id: Date.now() + Math.random() }))];
+            savePrompts();
+            renderPrompts();
+          } else {
+            alert("Invalid file format.");
+          }
+        } catch {
+          alert("Failed to import prompts.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+      localStorage.setItem("darkMode", document.body.classList.contains("dark-mode"));
+    }
+
+    function togglePromptVisibility(btn, pre) {
+      const isHidden = pre.style.display === "none";
+      pre.style.display = isHidden ? "block" : "none";
+      btn.textContent = isHidden ? "Hide" : "Show";
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (localStorage.getItem("darkMode") === "true") {
+        document.body.classList.add("dark-mode");
+      }
+    });
+  </script>
+  <style>
+    .dark-mode {
+      background-color: #1e1e1e;
+      color: #f0f0f0;
+    }
+    .dark-mode input, .dark-mode textarea, .dark-mode select {
+      background-color: #2a2a2a;
+      color: #f0f0f0;
+      border-color: #555;
+    }
+    .dark-mode .prompt-card {
+      background-color: #2d2d2d;
+      border-color: #444;
+    }
+  </style>
+  <section style="text-align:center; margin: 1rem 0;">
+    <button onclick="exportPrompts()">Export Prompts</button>
+    <input type="file" accept=".json" onchange="importPrompts(event)" style="display:inline-block; max-width:200px;" />
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+  </section>
+  </body>
+  
+</html>
